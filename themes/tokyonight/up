@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+export SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+
+# Down the last running theme
+if [ -f "/tmp/leftwm-theme-down" ]; then
+    /tmp/leftwm-theme-down
+    rm /tmp/leftwm-theme-down
+fi
+ln -s $SCRIPTPATH/down /tmp/leftwm-theme-down
+
+
+# Launch picom if it exists
+if [ -x "$(command -v picom)" ]; then
+  while pgrep -u $UID -x picom >/dev/null; do sleep 1; done
+  picom --config $SCRIPTPATH/picom.conf &> /dev/null &
+fi
+
+# Set the theme.toml config
+leftwm-command "LoadTheme $SCRIPTPATH/theme.toml"
+
+# Set wallpaper 
+if [ -x "$(command -v feh)" ]; then
+  feh --no-fehbg --bg-scale $SCRIPTPATH/wallpaper.jpg
+fi
+
+# change nvim theme
+sed -i "s/theme =.*$/theme = \"tokyonight\",/g" $HOME/.config/nvim/lua/custom/chadrc.lua
+
+# Launch Conkeww
+sed -i "s/colors\/color-.*/colors\/color-tomorrow-night.yuck\")/g" $HOME/.config/conkeww/eww.yuck
+eww --config $HOME/.config/conkeww/ open conkeww-main
+
+# change xfce4-terminal colorscheme
+XFCE_TERM_PATH="$HOME/.config/xfce4/terminal"
+cp "$XFCE_TERM_PATH"/colorschemes/tomorrow-night "$XFCE_TERM_PATH"/terminalrc
+
+# Set Super key
+if [ -x "$(command -v ksuperkey)" ]; then
+  ksuperkey -e 'Super_L=Alt_L|F1' &> /dev/null &
+  ksuperkey -e 'Super_R=Alt_L|F1' &> /dev/null &
+fi
+
+# Launch SXHKD daemon
+if [ -x "$(command -v sxhkd)" ]; then
+  sxhkd &> /dev/null &
+fi
+
+# power manager & polkit
+xfce4-power-manager &
+if [[ ! `pidof xfce-polkit` ]]; then
+    /usr/lib/xfce-polkit/xfce-polkit &
+fi
+
+# Launch notification daemon
+if [ -x "$(command -v dunst)" ]; then
+  dunst -config $SCRIPTPATH/dunstrc &
+fi
+
+index=0
+monitor="$(polybar -m | grep +0+0 | sed s/:.*// | tac)"
+leftwm-state -q -n -t $SCRIPTPATH/sizes.liquid | sed -r '/^\s*$/d' | while read -r width x y
+do
+  barname="mainbar$index"
+  monitor=$monitor offsetx=$x width=$width polybar -c $SCRIPTPATH/polybar.config $barname &> /dev/null &
+  let index=index+1
+done
+
+# User apps and funtions
+
+function run {
+  if ! pgrep -x $(basename $1 | head -c 15) 1>/dev/null;
+  then
+    $@&
+  fi  
+}
+
+run nordtray &
+run tailscale-systray &
+run flameshot &

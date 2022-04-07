@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+
+#set background
+if [ -x "$(command -v feh)" ]; then
+  feh --no-fehbg --bg-scale $SCRIPTPATH/down.jpg
+fi
+
+leftwm-command "UnloadTheme $SCRIPTPATH/theme.toml"
+
+killall -9 ksuperkey picom polybar sxhkd dunst xfce4-power-manager eww
